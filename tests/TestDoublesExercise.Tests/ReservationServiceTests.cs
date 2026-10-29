@@ -245,7 +245,7 @@ public sealed class ReservationServiceTests
     // Aufgabe 5: Handgeschrieben oder Moq?
     // Verfügbarkeit: eigener Stub (zeichnet Abfragen auf, bereits vorhanden).
     // Repository: Moq, weil Verify(..., Times.Never()) ohne eigenen Code zeigt,
-    //             dass weder TrySave noch TrySaveBatch aufgerufen wurde.
+    //             dass TrySave nicht aufgerufen wurde.
     // Sender: eigener Spy, weil er schon existiert und leicht lesbar ist.
     // ---------------------------------------------------------------------
 

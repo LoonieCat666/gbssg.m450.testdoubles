@@ -20,10 +20,4 @@ Der Stub gibt dem Service Daten zurück (wie viele Plätze frei sind), der Spy g
 
 ## Aufgabe 5
 
-Für Verfügbarkeit und Sender hab ich meine eigenen Doubles genommen, die hatte ich eh schon und Assert.Empty ist einfach zu lesen. Fürs Repository hab ich Moq genommen weil man mit Times.Never() und VerifyNoOtherCalls() direkt sieht dass gar nichts aufgerufen wurde, sonst hätte ich im Spy jede Methode einzeln mitschreiben müssen.
-
-## Fortgeschrittene: was wenn Send eine Exception wirft?
-
-Dann ist die Reservation schon gespeichert aber der Kunde kriegt keine Bestätigung (bei ReserveBatch vielleicht nur ein paar). Der Aufrufer sieht nur die Exception und denkt es hat nicht geklappt, probiert nochmal und dann ist es doppelt reserviert.
-
-Lösung wäre z.B. dass man die Bestätigung nicht direkt schickt sondern zuerst als "noch offen" mit der Reservation abspeichert. Dann schickt ein anderer Prozess die offenen Bestätigungen und probiert es halt nochmal wenn es nicht geht.
+Für Verfügbarkeit und Sender hab ich meine eigenen Doubles genommen, die hatte ich eh schon und Assert.Empty ist einfach zu lesen. Fürs Repository hab ich Moq genommen weil man mit Times.Never() und VerifyNoOtherCalls() direkt sieht dass gar nichts aufgerufen wurde, ohne dass ich extra was mitschreiben muss.
