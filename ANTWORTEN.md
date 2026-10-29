@@ -1,35 +1,29 @@
-# Antworten zu den Aufgaben
+# Antworten
 
-Gewähltes Testframework: **xUnit** (`tests/TestDoublesExercise.Tests`).
+Ich hab xUnit genommen.
 
-## Aufgabe 1: Nur die Schnittstelle ist bekannt
+## Aufgabe 1
 
-`ReservationService` hängt nur von der Schnittstelle `ISeatAvailability` ab, nicht von einer konkreten Klasse. Darum kann ich im Testprojekt einen eigenen Stub (`SeatAvailabilityStub`) übergeben und den Service schon jetzt testen.
+Der ReservationService braucht ja nur das Interface ISeatAvailability und keine echte Klasse. Also kann man einfach einen eigenen Stub reingeben (SeatAvailabilityStub) und schon testen, auch wenn es die richtige Implementierung noch nicht gibt.
 
-Die Schnittstelle sagt bereits: Es gibt eine Methode `GetAvailableSeats`, sie bekommt einen Veranstaltungscode (`string`) und gibt eine Anzahl freier Plätze (`int`) zurück. Sie sagt nicht, woher die Zahl kommt und was bei einem unbekannten Code passiert.
+Vom Interface weiss man nur, dass GetAvailableSeats einen Veranstaltungscode bekommt und eine Zahl zurückgibt. Woher die Zahl kommt weiss man nicht.
 
-Meine fachliche Annahme: `GetAvailableSeats` gibt für einen Veranstaltungscode die Anzahl der aktuell noch freien Plätze zurück, nie einen negativen Wert. Für einen unbekannten Code liefert mein Stub 0 freie Plätze.
+Meine Annahme: es kommt die Anzahl freie Plätze zurück und die ist nie negativ. Wenn der Code unbekannt ist gibt mein Stub einfach 0 zurück.
 
-## Aufgabe 2: Fehlende Aufrufe sichtbar machen
+## Aufgabe 2
 
-Ich verwende Doubles, die jeden Aufruf mitschreiben: Der Stub merkt sich die abgefragten Veranstaltungscodes, der `RepositorySpy` die gespeicherten Reservierungen und der `ConfirmationSenderSpy` die versendeten Bestätigungen. Nach der Exception prüfe ich, dass alle drei Listen leer sind. Der Produktionscode muss dafür nicht geändert werden.
+Meine Doubles schreiben mit wann sie aufgerufen werden (Stub merkt sich die Codes, die Spies die Reservationen). Nach der Exception schau ich einfach ob die Listen leer sind. Dann weiss ich dass nichts aufgerufen wurde, ohne dass ich am Service was ändern muss.
 
-## Aufgabe 3: Stub und Spy
+## Aufgabe 3
 
-Mein Stub liefert dem Service kontrollierte Daten (die Anzahl freier Plätze), damit der Test einen bestimmten Fall herstellen kann. Mein Spy liefert nichts zurück, sondern zeichnet die Aufrufe auf, damit der Test nachher prüfen kann, ob und womit der Service ihn aufgerufen hat.
+Der Stub gibt dem Service Daten zurück (wie viele Plätze frei sind), der Spy gibt nichts zurück sondern merkt sich nur was mit ihm gemacht wurde damit ich das nachher prüfen kann.
 
-## Aufgabe 5: Handgeschrieben oder Moq?
+## Aufgabe 5
 
-Für die Verfügbarkeit und den Sender verwende ich meine handgeschriebenen Doubles (`SeatAvailabilityStub`, `ConfirmationSenderSpy`), weil sie schon existieren und die Prüfung mit `Assert.Empty(...)` sehr gut lesbar ist. Für das Repository verwende ich Moq, weil ich mit `Verify(..., Times.Never())` und `VerifyNoOtherCalls()` ohne zusätzlichen Code prüfen kann, dass keine einzige Methode des Repositorys aufgerufen wurde. Ein handgeschriebener Spy müsste dafür jede Methode einzeln mitschreiben.
+Für Verfügbarkeit und Sender hab ich meine eigenen Doubles genommen, die hatte ich eh schon und Assert.Empty ist einfach zu lesen. Fürs Repository hab ich Moq genommen weil man mit Times.Never() und VerifyNoOtherCalls() direkt sieht dass gar nichts aufgerufen wurde, sonst hätte ich im Spy jede Methode einzeln mitschreiben müssen.
 
-## Fortgeschrittene: `Send` wirft nach erfolgreichem Speichern eine Exception
+## Fortgeschrittene: was wenn Send eine Exception wirft?
 
-Die Reservierung ist dann bereits gespeichert, aber der Kunde bekommt keine Bestätigung (oder bei `ReserveBatch` nur ein Teil der Kunden). Der Aufrufer bekommt eine Exception und denkt eventuell, die Reservierung sei fehlgeschlagen. Er versucht es nochmals, und es entsteht eine doppelte Reservierung. Die Plätze sind belegt, obwohl der Kunde nichts davon weiss.
+Dann ist die Reservation schon gespeichert aber der Kunde kriegt keine Bestätigung (bei ReserveBatch vielleicht nur ein paar). Der Aufrufer sieht nur die Exception und denkt es hat nicht geklappt, probiert nochmal und dann ist es doppelt reserviert.
 
-Mögliche fachliche Lösung: Die Bestätigung wird nicht direkt verschickt, sondern als „offene Bestätigung“ zusammen mit der Reservierung gespeichert (Outbox). Ein separater Prozess verschickt offene Bestätigungen und wiederholt den Versand bei Fehlern, bis er gelingt. Die Reservierung bleibt gültig, und der Kunde kann seine Reservierung zusätzlich im Kundenkonto einsehen.
-
-## Tests ausführen
-
-```bash
-dotnet test tests/TestDoublesExercise.Tests/TestDoublesExercise.Tests.csproj
-```
+Lösung wäre z.B. dass man die Bestätigung nicht direkt schickt sondern zuerst als "noch offen" mit der Reservation abspeichert. Dann schickt ein anderer Prozess die offenen Bestätigungen und probiert es halt nochmal wenn es nicht geht.
