@@ -1,9 +1,5 @@
 namespace TestDoublesExercise.Tests;
 
-// Stub: liefert für festgelegte Veranstaltungscodes eine feste Anzahl freier Plätze.
-// Er berechnet keine echte Verfügbarkeit. Unbekannte Codes haben 0 freie Plätze.
-// Die abgefragten Codes werden mitgeschrieben, damit Tests fehlende oder doppelte
-// Abfragen sichtbar machen können.
 internal sealed class SeatAvailabilityStub : ISeatAvailability
 {
     private readonly Dictionary<string, int> _availableSeatsPerEvent;
@@ -28,13 +24,11 @@ internal sealed class SeatAvailabilityStub : ISeatAvailability
     }
 }
 
-// Einfaches Repository-Double: Speichern gelingt immer, es wird nichts geprüft.
 internal sealed class AlwaysSucceedingRepository : IReservationRepository
 {
     public bool TrySave(Reservation reservation) => true;
 }
 
-// Repository-Spy: liefert ein festgelegtes Ergebnis und zeichnet alle Speicherversuche auf.
 internal sealed class RepositorySpy(bool saveResult) : IReservationRepository
 {
     private readonly List<Reservation> _savedReservations = [];
@@ -48,7 +42,6 @@ internal sealed class RepositorySpy(bool saveResult) : IReservationRepository
     }
 }
 
-// Sender, der nichts tut (Dummy) – für Tests, in denen die Bestätigung keine Rolle spielt.
 internal sealed class NoOpConfirmationSender : IConfirmationSender
 {
     public void Send(Reservation reservation)
@@ -56,7 +49,6 @@ internal sealed class NoOpConfirmationSender : IConfirmationSender
     }
 }
 
-// Spy: zeichnet alle übergebenen Reservierungen in ihrer Reihenfolge auf.
 internal sealed class ConfirmationSenderSpy : IConfirmationSender
 {
     private readonly List<Reservation> _sentReservations = [];

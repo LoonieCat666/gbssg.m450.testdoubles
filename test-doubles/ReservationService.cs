@@ -2,7 +2,6 @@ namespace TestDoublesExercise;
 
 public sealed record Reservation(string CustomerEmail, string EventCode, int SeatCount);
 
-// Für diese Schnittstelle existiert in der Übung noch keine produktive Implementierung.
 public interface ISeatAvailability
 {
     int GetAvailableSeats(string eventCode);
@@ -10,7 +9,6 @@ public interface ISeatAvailability
 
 public interface IReservationRepository
 {
-    // Gibt false zurück, wenn die Reservierung nicht gespeichert werden konnte.
     bool TrySave(Reservation reservation);
 }
 
