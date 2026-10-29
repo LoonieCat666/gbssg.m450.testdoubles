@@ -12,7 +12,7 @@ Meine Annahme: es kommt die Anzahl freie Plätze zurück und die ist nie negativ
 
 ## Aufgabe 2
 
-Meine Doubles schreiben mit wann sie aufgerufen werden (Stub merkt sich die Codes, die Spies die Reservationen). Nach der Exception schau ich einfach ob die Listen leer sind. Dann weiss ich dass nichts aufgerufen wurde, ohne dass ich am Service was ändern muss.
+Meine Doubles schreiben mit wann sie aufgerufen werden (Stub zählt die Aufrufe, Repository und Sender speichern die Reservationen in einer Liste). Nach der Exception schau ich einfach ob der Zähler 0 ist und die Listen leer sind. Dann weiss ich dass nichts aufgerufen wurde, ohne dass ich am Service was ändern muss.
 
 ## Aufgabe 3
 
@@ -20,4 +20,4 @@ Der Stub gibt dem Service Daten zurück (wie viele Plätze frei sind), der Spy g
 
 ## Aufgabe 5
 
-Für Verfügbarkeit und Sender hab ich meine eigenen Doubles genommen, die hatte ich eh schon und Assert.Empty ist einfach zu lesen. Fürs Repository hab ich Moq genommen weil man mit Times.Never() und VerifyNoOtherCalls() direkt sieht dass gar nichts aufgerufen wurde, ohne dass ich extra was mitschreiben muss.
+Für Verfügbarkeit und Sender hab ich meine eigenen Doubles genommen, die hatte ich eh schon und die kann man einfach prüfen. Fürs Repository hab ich Moq genommen weil man mit Times.Never() direkt sieht dass TrySave nicht aufgerufen wurde, ohne dass ich extra was mitschreiben muss.

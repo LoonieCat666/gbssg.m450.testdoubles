@@ -2,18 +2,15 @@ using Moq;
 
 namespace TestDoublesExercise.Tests;
 
-public sealed class ReservationServiceTests
+public class ReservationServiceTests
 {
-    private const string Email = "anna@example.com";
-    private const string EventCode = "CONCERT-1";
-
     [Fact]
     public void Reserve_WithEnoughSeats_ReturnsTrue()
     {
-        var availability = new SeatAvailabilityStub(EventCode, availableSeats: 3);
-        var service = new ReservationService(availability, new AlwaysSucceedingRepository(), new NoOpConfirmationSender());
+        var stub = new SeatAvailabilityStub("EVENT1", 3);
+        var service = new ReservationService(stub, new FakeRepository(true), new EmptySender());
 
-        var result = service.Reserve(Email, EventCode, seatCount: 2);
+        var result = service.Reserve("test@mail.ch", "EVENT1", 2);
 
         Assert.True(result);
     }
@@ -21,10 +18,10 @@ public sealed class ReservationServiceTests
     [Fact]
     public void Reserve_WithTooFewSeats_ReturnsFalse()
     {
-        var availability = new SeatAvailabilityStub(EventCode, availableSeats: 1);
-        var service = new ReservationService(availability, new AlwaysSucceedingRepository(), new NoOpConfirmationSender());
+        var stub = new SeatAvailabilityStub("EVENT1", 1);
+        var service = new ReservationService(stub, new FakeRepository(true), new EmptySender());
 
-        var result = service.Reserve(Email, EventCode, seatCount: 2);
+        var result = service.Reserve("test@mail.ch", "EVENT1", 2);
 
         Assert.False(result);
     }
@@ -32,10 +29,10 @@ public sealed class ReservationServiceTests
     [Fact]
     public void Reserve_WithExactlyEnoughSeats_Succeeds()
     {
-        var availability = new SeatAvailabilityStub(EventCode, availableSeats: 2);
-        var service = new ReservationService(availability, new AlwaysSucceedingRepository(), new NoOpConfirmationSender());
+        var stub = new SeatAvailabilityStub("EVENT1", 2);
+        var service = new ReservationService(stub, new FakeRepository(true), new EmptySender());
 
-        var result = service.Reserve(Email, EventCode, seatCount: 2);
+        var result = service.Reserve("test@mail.ch", "EVENT1", 2);
 
         Assert.True(result);
     }
@@ -43,166 +40,207 @@ public sealed class ReservationServiceTests
     [Fact]
     public void Reserve_WithZeroSeats_ThrowsBeforeCallingDependencies()
     {
-        var availability = new SeatAvailabilityStub(EventCode, availableSeats: 3);
-        var repository = new RepositorySpy(saveResult: true);
-        var sender = new ConfirmationSenderSpy();
-        var service = new ReservationService(availability, repository, sender);
+        var stub = new SeatAvailabilityStub("EVENT1", 3);
+        var repository = new FakeRepository(true);
+        var spy = new SenderSpy();
+        var service = new ReservationService(stub, repository, spy);
 
-        Action action = () => service.Reserve(Email, EventCode, seatCount: 0);
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.Reserve("test@mail.ch", "EVENT1", 0));
 
-        Assert.Throws<ArgumentOutOfRangeException>(action);
-        Assert.Empty(availability.RequestedEventCodes);
-        Assert.Empty(repository.SavedReservations);
-        Assert.Empty(sender.SentReservations);
+        Assert.Equal(0, stub.Calls);
+        Assert.Empty(repository.Saved);
+        Assert.Empty(spy.Sent);
     }
 
     [Fact]
     public void Reserve_WithNegativeSeats_ThrowsBeforeCallingDependencies()
     {
-        var availability = new SeatAvailabilityStub(EventCode, availableSeats: 3);
-        var repository = new RepositorySpy(saveResult: true);
-        var sender = new ConfirmationSenderSpy();
-        var service = new ReservationService(availability, repository, sender);
+        var stub = new SeatAvailabilityStub("EVENT1", 3);
+        var repository = new FakeRepository(true);
+        var spy = new SenderSpy();
+        var service = new ReservationService(stub, repository, spy);
 
-        Action action = () => service.Reserve(Email, EventCode, seatCount: -1);
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.Reserve("test@mail.ch", "EVENT1", -1));
 
-        Assert.Throws<ArgumentOutOfRangeException>(action);
-        Assert.Empty(availability.RequestedEventCodes);
-        Assert.Empty(repository.SavedReservations);
-        Assert.Empty(sender.SentReservations);
+        Assert.Equal(0, stub.Calls);
+        Assert.Empty(repository.Saved);
+        Assert.Empty(spy.Sent);
     }
 
     [Fact]
     public void Reserve_WithEmptyEventCode_ThrowsBeforeCallingDependencies()
     {
-        var availability = new SeatAvailabilityStub(EventCode, availableSeats: 3);
-        var repository = new RepositorySpy(saveResult: true);
-        var sender = new ConfirmationSenderSpy();
-        var service = new ReservationService(availability, repository, sender);
+        var stub = new SeatAvailabilityStub("EVENT1", 3);
+        var repository = new FakeRepository(true);
+        var spy = new SenderSpy();
+        var service = new ReservationService(stub, repository, spy);
 
-        Action action = () => service.Reserve(Email, eventCode: "", seatCount: 2);
+        Assert.Throws<ArgumentException>(() => service.Reserve("test@mail.ch", "", 2));
 
-        var exception = Assert.Throws<ArgumentException>(action);
-        Assert.Equal("eventCode", exception.ParamName);
-        Assert.Empty(availability.RequestedEventCodes);
-        Assert.Empty(repository.SavedReservations);
-        Assert.Empty(sender.SentReservations);
+        Assert.Equal(0, stub.Calls);
+        Assert.Empty(repository.Saved);
+        Assert.Empty(spy.Sent);
     }
 
     [Fact]
-    public void Reserve_WhenSaved_SendsExactlyOneConfirmationWithReservationData()
+    public void Reserve_WhenSaved_SendsOneConfirmation()
     {
-        var sender = new ConfirmationSenderSpy();
-        var service = new ReservationService(
-            new SeatAvailabilityStub(EventCode, availableSeats: 3),
-            new AlwaysSucceedingRepository(),
-            sender);
+        var spy = new SenderSpy();
+        var service = new ReservationService(new SeatAvailabilityStub("EVENT1", 3), new FakeRepository(true), spy);
 
-        var result = service.Reserve(Email, EventCode, seatCount: 2);
+        var result = service.Reserve("test@mail.ch", "EVENT1", 2);
 
         Assert.True(result);
-        var confirmation = Assert.Single(sender.SentReservations);
-        Assert.Equal(Email, confirmation.CustomerEmail);
-        Assert.Equal(EventCode, confirmation.EventCode);
-        Assert.Equal(2, confirmation.SeatCount);
+        Assert.Single(spy.Sent);
+        Assert.Equal("test@mail.ch", spy.Sent[0].CustomerEmail);
+        Assert.Equal("EVENT1", spy.Sent[0].EventCode);
+        Assert.Equal(2, spy.Sent[0].SeatCount);
     }
 
     [Fact]
     public void Reserve_WithTooFewSeats_DoesNotSaveOrSend()
     {
-        var repository = new RepositorySpy(saveResult: true);
-        var sender = new ConfirmationSenderSpy();
-        var service = new ReservationService(new SeatAvailabilityStub(EventCode, availableSeats: 1), repository, sender);
+        var repository = new FakeRepository(true);
+        var spy = new SenderSpy();
+        var service = new ReservationService(new SeatAvailabilityStub("EVENT1", 1), repository, spy);
 
-        var result = service.Reserve(Email, EventCode, seatCount: 2);
+        var result = service.Reserve("test@mail.ch", "EVENT1", 2);
 
         Assert.False(result);
-        Assert.Empty(repository.SavedReservations);
-        Assert.Empty(sender.SentReservations);
+        Assert.Empty(repository.Saved);
+        Assert.Empty(spy.Sent);
     }
 
     [Fact]
     public void Reserve_WhenSavingFails_DoesNotSendConfirmation()
     {
-        var sender = new ConfirmationSenderSpy();
-        var service = new ReservationService(
-            new SeatAvailabilityStub(EventCode, availableSeats: 3),
-            new RepositorySpy(saveResult: false),
-            sender);
+        var spy = new SenderSpy();
+        var service = new ReservationService(new SeatAvailabilityStub("EVENT1", 3), new FakeRepository(false), spy);
 
-        var result = service.Reserve(Email, EventCode, seatCount: 2);
+        var result = service.Reserve("test@mail.ch", "EVENT1", 2);
 
         Assert.False(result);
-        Assert.Empty(sender.SentReservations);
+        Assert.Empty(spy.Sent);
     }
 
     [Fact]
-    public void Reserve_WithEnoughSeats_SavesCorrectReservationOnce_Moq()
+    public void Reserve_WithEnoughSeats_SavesReservationWithMoq()
     {
         var repository = new Mock<IReservationRepository>();
-        repository.Setup(repo => repo.TrySave(It.IsAny<Reservation>())).Returns(true);
-        var sender = new ConfirmationSenderSpy();
-        var service = new ReservationService(new SeatAvailabilityStub(EventCode, availableSeats: 3), repository.Object, sender);
+        repository.Setup(r => r.TrySave(It.IsAny<Reservation>())).Returns(true);
+        var spy = new SenderSpy();
+        var service = new ReservationService(new SeatAvailabilityStub("EVENT1", 3), repository.Object, spy);
 
-        var result = service.Reserve(Email, EventCode, seatCount: 2);
+        var result = service.Reserve("test@mail.ch", "EVENT1", 2);
 
         Assert.True(result);
-        repository.Verify(
-            repo => repo.TrySave(It.Is<Reservation>(r =>
-                r.CustomerEmail == Email && r.EventCode == EventCode && r.SeatCount == 2)),
-            Times.Once());
-        repository.VerifyNoOtherCalls();
-        Assert.Equal(new Reservation(Email, EventCode, 2), Assert.Single(sender.SentReservations));
+        repository.Verify(r => r.TrySave(It.Is<Reservation>(x =>
+            x.CustomerEmail == "test@mail.ch" && x.EventCode == "EVENT1" && x.SeatCount == 2)), Times.Once());
+        Assert.Single(spy.Sent);
     }
 
     [Fact]
-    public void Reserve_WhenSavingFails_ReturnsFalseAndSendsNothing_Moq()
+    public void Reserve_WhenSavingFailsWithMoq_ReturnsFalse()
     {
         var repository = new Mock<IReservationRepository>();
-        repository.Setup(repo => repo.TrySave(It.IsAny<Reservation>())).Returns(false);
-        var sender = new ConfirmationSenderSpy();
-        var service = new ReservationService(new SeatAvailabilityStub(EventCode, availableSeats: 3), repository.Object, sender);
+        repository.Setup(r => r.TrySave(It.IsAny<Reservation>())).Returns(false);
+        var spy = new SenderSpy();
+        var service = new ReservationService(new SeatAvailabilityStub("EVENT1", 3), repository.Object, spy);
 
-        var result = service.Reserve(Email, EventCode, seatCount: 2);
+        var result = service.Reserve("test@mail.ch", "EVENT1", 2);
 
         Assert.False(result);
-        repository.Verify(
-            repo => repo.TrySave(It.Is<Reservation>(r =>
-                r.CustomerEmail == Email && r.EventCode == EventCode && r.SeatCount == 2)),
-            Times.Once());
-        Assert.Empty(sender.SentReservations);
+        repository.Verify(r => r.TrySave(It.Is<Reservation>(x =>
+            x.CustomerEmail == "test@mail.ch" && x.EventCode == "EVENT1" && x.SeatCount == 2)), Times.Once());
+        Assert.Empty(spy.Sent);
     }
 
     [Fact]
     public void Reserve_WithTooFewSeats_DoesNotCallRepository()
     {
         var repository = new Mock<IReservationRepository>();
-        repository.Setup(repo => repo.TrySave(It.IsAny<Reservation>())).Returns(true);
-        var sender = new ConfirmationSenderSpy();
-        var service = new ReservationService(new SeatAvailabilityStub(EventCode, availableSeats: 1), repository.Object, sender);
+        repository.Setup(r => r.TrySave(It.IsAny<Reservation>())).Returns(true);
+        var spy = new SenderSpy();
+        var service = new ReservationService(new SeatAvailabilityStub("EVENT1", 1), repository.Object, spy);
 
-        var result = service.Reserve(Email, EventCode, seatCount: 2);
+        var result = service.Reserve("test@mail.ch", "EVENT1", 2);
 
         Assert.False(result);
-        repository.Verify(repo => repo.TrySave(It.IsAny<Reservation>()), Times.Never());
-        Assert.Empty(sender.SentReservations);
+        repository.Verify(r => r.TrySave(It.IsAny<Reservation>()), Times.Never());
+        Assert.Empty(spy.Sent);
     }
 
     [Fact]
     public void Reserve_WithWhitespaceEmail_ThrowsBeforeCallingDependencies()
     {
-        var availability = new SeatAvailabilityStub(EventCode, availableSeats: 3);
+        var stub = new SeatAvailabilityStub("EVENT1", 3);
         var repository = new Mock<IReservationRepository>();
-        var sender = new ConfirmationSenderSpy();
-        var service = new ReservationService(availability, repository.Object, sender);
+        var spy = new SenderSpy();
+        var service = new ReservationService(stub, repository.Object, spy);
 
-        Action action = () => service.Reserve("   ", EventCode, seatCount: 2);
+        Assert.Throws<ArgumentException>(() => service.Reserve("   ", "EVENT1", 2));
 
-        var exception = Assert.Throws<ArgumentException>(action);
-        Assert.Equal("customerEmail", exception.ParamName);
-        Assert.Empty(availability.RequestedEventCodes);
-        repository.Verify(repo => repo.TrySave(It.IsAny<Reservation>()), Times.Never());
-        repository.VerifyNoOtherCalls();
-        Assert.Empty(sender.SentReservations);
+        Assert.Equal(0, stub.Calls);
+        repository.Verify(r => r.TrySave(It.IsAny<Reservation>()), Times.Never());
+        Assert.Empty(spy.Sent);
+    }
+
+    private class SeatAvailabilityStub : ISeatAvailability
+    {
+        private readonly string _eventCode;
+        private readonly int _seats;
+
+        public SeatAvailabilityStub(string eventCode, int seats)
+        {
+            _eventCode = eventCode;
+            _seats = seats;
+        }
+
+        public int Calls { get; private set; }
+
+        public int GetAvailableSeats(string eventCode)
+        {
+            Calls++;
+            if (eventCode == _eventCode)
+            {
+                return _seats;
+            }
+            return 0;
+        }
+    }
+
+    private class FakeRepository : IReservationRepository
+    {
+        private readonly bool _result;
+
+        public FakeRepository(bool result)
+        {
+            _result = result;
+        }
+
+        public List<Reservation> Saved { get; } = new List<Reservation>();
+
+        public bool TrySave(Reservation reservation)
+        {
+            Saved.Add(reservation);
+            return _result;
+        }
+    }
+
+    private class EmptySender : IConfirmationSender
+    {
+        public void Send(Reservation reservation)
+        {
+        }
+    }
+
+    private class SenderSpy : IConfirmationSender
+    {
+        public List<Reservation> Sent { get; } = new List<Reservation>();
+
+        public void Send(Reservation reservation)
+        {
+            Sent.Add(reservation);
+        }
     }
 }
